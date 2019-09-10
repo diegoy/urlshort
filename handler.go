@@ -3,6 +3,8 @@ package urlshort
 import (
 	"fmt"
 	"net/http"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 // MapHandler will return an http.HandlerFunc (which also
@@ -24,6 +26,11 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 	})
 }
 
+type tuple struct {
+	Path string
+	URL  string
+}
+
 // YAMLHandler will parse the provided YAML and then return
 // an http.HandlerFunc (which also implements http.Handler)
 // that will attempt to map any paths to their corresponding
@@ -41,6 +48,29 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 // See MapHandler to create a similar http.HandlerFunc via
 // a mapping of paths to urls.
 func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	// TODO: Implement this...
-	return nil, nil
+	urls := []tuple{}
+
+	err := yaml.Unmarshal(yml, &urls)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("---- yaml \n%v\n\n", urls)
+
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, req *http.Request) {
+		fmt.Printf("Received request: %s\n", req.URL.Path)
+
+		foundURL := ""
+		for _, tuple := range urls {
+			if tuple.Path == req.URL.Path {
+				foundURL = tuple.URL
+				break
+			}
+		}
+
+		if foundURL != "" {
+			http.Redirect(responseWriter, req, foundURL, 302)
+		} else {
+			fallback.ServeHTTP(responseWriter, req)
+		}
+	}), nil
 }
