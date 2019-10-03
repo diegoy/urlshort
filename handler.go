@@ -1,6 +1,7 @@
 package urlshort
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -55,6 +56,41 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 		return nil, err
 	}
 	fmt.Printf("---- yaml \n%v\n\n", urls)
+
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, req *http.Request) {
+		fmt.Printf("Received request: %s\n", req.URL.Path)
+
+		foundURL := ""
+		for _, tuple := range urls {
+			if tuple.Path == req.URL.Path {
+				foundURL = tuple.URL
+				break
+			}
+		}
+
+		if foundURL != "" {
+			http.Redirect(responseWriter, req, foundURL, 302)
+		} else {
+			fallback.ServeHTTP(responseWriter, req)
+		}
+	}), nil
+}
+
+// JSONHandler will handle urls based on the provided JSON file
+// Expected Format:
+//
+// [
+// 	{ path: '/some-path', url: 'https://example.com'}
+// ]
+//
+func JSONHandler(jsonBytes []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	urls := []tuple{}
+
+	err := json.Unmarshal(jsonBytes, &urls)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("---- json \n%v\n\n", urls)
 
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, req *http.Request) {
 		fmt.Printf("Received request: %s\n", req.URL.Path)

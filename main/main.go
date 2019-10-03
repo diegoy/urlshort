@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gophercises/urlshort"
 )
 
 func main() {
-	yamlFile := flag.String("file", "default", "yaml file name")
+	fileName := flag.String("file", "default", "file name")
+	format := flag.String("format", "yaml", "type of the file: [yaml, json]")
 	flag.Parse()
 
 	mux := defaultMux()
@@ -22,15 +24,27 @@ func main() {
 	}
 	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
-	// Build the YAMLHandler using the mapHandler as the
-	// fallback
-	yaml := getUrlsYaml(*yamlFile)
-	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
-	if err != nil {
-		panic(err)
+	if strings.Compare(*format, "yaml") == 0 {
+		// Build the YAMLHandler using the mapHandler as the
+		// fallback
+		yaml := getUrlsYaml(*fileName)
+		yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Starting the server on :8080")
+		http.ListenAndServe(":8080", yamlHandler)
+	} else if strings.Compare(*format, "json") == 0 {
+		json := getUrlsJSON(*fileName)
+		jsonHandler, err := urlshort.JSONHandler([]byte(json), mapHandler)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Starting the server on :8080")
+		http.ListenAndServe(":8080", jsonHandler)
+	} else {
+		panic("Unknown file format")
 	}
-	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", yamlHandler)
 }
 
 func defaultMux() *http.ServeMux {
@@ -45,14 +59,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 func getUrlsYaml(yamlFile string) string {
 	if yamlFile != "default" {
-		file, err := ioutil.ReadFile(yamlFile)
-
-		if err != nil {
-			fmt.Printf(`Oops file "%s" not found`, yamlFile)
-			panic(err)
-		}
-
-		return string(file)
+		return readFile(yamlFile)
 	}
 
 	return `
@@ -61,5 +68,25 @@ func getUrlsYaml(yamlFile string) string {
 - path: /urlshort-final
   url: https://github.com/gophercises/urlshort/tree/solution
 `
+}
 
+func getUrlsJSON(fileName string) string {
+	if fileName != "default" {
+		return readFile(fileName)
+	}
+
+	return `
+[ {"path": "/test", "url": "https://www.uol.com.br"} ]
+	`
+}
+
+func readFile(fileName string) string {
+	file, err := ioutil.ReadFile(fileName)
+
+	if err != nil {
+		fmt.Printf(`Oops file "%s" not found`, fileName)
+		panic(err)
+	}
+
+	return string(file)
 }
