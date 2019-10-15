@@ -55,25 +55,11 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	fmt.Printf("---- yaml \n%v\n\n", urls)
+	urlMap := convertToMap(urls)
 
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, req *http.Request) {
-		fmt.Printf("Received request: %s\n", req.URL.Path)
-
-		foundURL := ""
-		for _, tuple := range urls {
-			if tuple.Path == req.URL.Path {
-				foundURL = tuple.URL
-				break
-			}
-		}
-
-		if foundURL != "" {
-			http.Redirect(responseWriter, req, foundURL, 302)
-		} else {
-			fallback.ServeHTTP(responseWriter, req)
-		}
-	}), nil
+	return MapHandler(urlMap, fallback), nil
 }
 
 // JSONHandler will handle urls based on the provided JSON file
@@ -92,21 +78,15 @@ func JSONHandler(jsonBytes []byte, fallback http.Handler) (http.HandlerFunc, err
 	}
 	fmt.Printf("---- json \n%v\n\n", urls)
 
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, req *http.Request) {
-		fmt.Printf("Received request: %s\n", req.URL.Path)
+	return MapHandler(convertToMap(urls), fallback), nil
+}
 
-		foundURL := ""
-		for _, tuple := range urls {
-			if tuple.Path == req.URL.Path {
-				foundURL = tuple.URL
-				break
-			}
-		}
+func convertToMap(urls []tuple) map[string]string {
+	urlMap := make(map[string]string)
 
-		if foundURL != "" {
-			http.Redirect(responseWriter, req, foundURL, 302)
-		} else {
-			fallback.ServeHTTP(responseWriter, req)
-		}
-	}), nil
+	for _, tuple := range urls {
+		urlMap[tuple.Path] = tuple.URL
+	}
+
+	return urlMap
 }
